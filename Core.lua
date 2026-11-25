@@ -102,18 +102,20 @@ function ns.MyName()
     return myName
 end
 
+-- WoW Forever gives an empty realm name: then "" (that's how the data has
+-- always been saved, so the keys stay the same).
 function ns.MyRealm()
     if myRealm then return myRealm end
-    local realm = GetRealmName and GetRealmName()
-    if not realm or realm == "" then return "?" end
-    myRealm = realm
+    local realm = (GetRealmName and GetRealmName()) or ""
+    if realm == "" and GetNormalizedRealmName then realm = GetNormalizedRealmName() or "" end
+    if realm ~= "" then myRealm = realm end
     return realm
 end
 
 function ns.MyKey()
     if myKey then return myKey end
     local name, realm = ns.MyName(), ns.MyRealm()
-    if myName and myRealm then myKey = name .. " - " .. realm end
+    if myName and IsLoggedIn and IsLoggedIn() then myKey = name .. " - " .. realm end
     return name .. " - " .. realm
 end
 
@@ -194,6 +196,34 @@ local function InitDB()
         if DB.opts[k] == nil then DB.opts[k] = v end
     end
     ns.db = DB
+end
+
+-- 1.0.0 briefly saved an empty realm as "?", which split a character into two
+-- records ("Name - ?" and "Name - "). Put them back together: the newer scan
+-- of each place wins.
+local function FixRealmKeys()
+    local chars = DB.chars
+    local moved = {}
+    for key, c in pairs(chars) do
+        if c.realm == "?" or key:sub(-4) == " - ?" then moved[#moved + 1] = key end
+    end
+    for _, key in ipairs(moved) do
+        local c = chars[key]
+        chars[key] = nil
+        c.realm = ""
+        local newKey = key:gsub(" %- %?$", " - ")
+        local old = chars[newKey]
+        if old then
+            for _, place in ipairs(ns.PLACES) do
+                local t = place .. "T"
+                if (c[t] or 0) < (old[t] or 0) then c[place], c[t] = old[place], old[t] end
+            end
+            if (c.last or 0) < (old.last or 0) then c.money = old.money end
+            c.last = math.max(c.last or 0, old.last or 0)
+        end
+        chars[newKey] = c
+        if DB.opts.filterChar == key then DB.opts.filterChar = newKey end
+    end
 end
 
 -- The record of the character we are playing (made on first login).
@@ -479,6 +509,17 @@ end
 local function Slash(msg)
     msg = (msg or ""):match("^%s*(.-)%s*$")
     local cmd = msg:lower()
+    if not ns.db then
+        ns.Print("|cffff5555" .. L["Not started yet - saved data not loaded."] .. "|r")
+        return
+    end
+    -- A part that failed at start-up: say so instead of doing nothing.
+    local part = (cmd == "options" or cmd == "config" or cmd == "opt") and "options"
+        or (cmd == "minimap" and "minimap") or (cmd ~= "scan" and cmd ~= "help" and cmd ~= "?" and "overview")
+    if part and ns.failed[part] then
+        ns.Print("|cffff5555" .. format(L["Could not start the %s: %s"], part, (ns.failed[part]:match("^[^\n]*"))) .. "|r")
+        return
+    end
     if cmd == "" then
         ns.Overview:Toggle()
     elseif cmd == "options" or cmd == "config" or cmd == "opt" then
@@ -516,6 +557,21 @@ end
 -------------------------------------------------------------------------------
 --  Events
 -------------------------------------------------------------------------------
+-- Runs one part of the start-up. An error is printed in chat (and passed on to
+-- BugSack / the error frame) instead of silently stopping everything after it.
+ns.failed = {}
+local function SafeInit(part, fn, a1)
+    local ok, err = xpcall(function() return fn(a1) end, function(e)
+        return tostring(e) .. "\n" .. (debugstack and debugstack(2, 8, 0) or "")
+    end)
+    if ok then return true end
+    ns.failed[part] = err
+    ns.Print("|cffff5555" .. format(L["Could not start the %s: %s"], part, (tostring(err):match("^[^\n]*"))) .. "|r")
+    local handler = geterrorhandler and geterrorhandler()
+    if handler then pcall(handler, err) end
+    return false
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_MONEY")
@@ -526,11 +582,13 @@ events:SetScript("OnEvent", function(_, event, a1)
     if event == "ADDON_LOADED" then
         if a1 ~= ADDON then return end
         InitDB()   -- the character record is made at login (Scan.lua), when the name is known
-        ns.St.ApplyTheme(DB.opts.theme)   -- before any window is built
-        ns.Overview:Init()
-        ns.Minimap:Init()
-        ns.Options:Init()
-        ns.Tooltip:Init()
+        SafeInit("data", FixRealmKeys)
+        SafeInit("style", ns.St.ApplyTheme, DB.opts.theme)   -- before any window is built
+        -- Each part on its own: one that fails doesn't take the others with it.
+        SafeInit("overview", ns.Overview.Init, ns.Overview)
+        SafeInit("minimap", ns.Minimap.Init, ns.Minimap)
+        SafeInit("options", ns.Options.Init, ns.Options)
+        SafeInit("tooltip", ns.Tooltip.Init, ns.Tooltip)
     elseif not DB then
         return
     elseif event == "PLAYER_MONEY" then

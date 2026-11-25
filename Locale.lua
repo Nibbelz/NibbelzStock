@@ -95,6 +95,8 @@ local DE = {
     ["/stock minimap - minimap button on / off"] = "/stock minimap - Minimap-Button an / aus",
     ["%s forgotten."] = "%s vergessen.",
     ["Bags scanned."] = "Taschen gescannt.",
+    ["Could not start the %s: %s"] = "Konnte %s nicht starten: %s",
+    ["Not started yet - saved data not loaded."] = "Noch nicht gestartet - gespeicherte Daten nicht geladen.",
 }
 
 local strings = (GetLocale() == "deDE") and DE or {}

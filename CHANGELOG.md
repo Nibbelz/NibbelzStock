@@ -1,5 +1,11 @@
 # Nibbelz Stock
 
+## 1.0.1
+
+- Fixed: characters were saved twice (once with realm "?"). The two records are merged back into one automatically.
+- If a part of the addon can't start (overview, minimap button, options, tooltip), the others still load and the error is shown in chat. `/stock` says what went wrong instead of doing nothing.
+- Faster: bag scans that change nothing no longer rebuild the lists, item info is looked up once per session, tooltips and the overview reuse what they built.
+
 ## 1.0.0
 
 First public release.
