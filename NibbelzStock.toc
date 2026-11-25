@@ -1,0 +1,25 @@
+## Interface: 16001, 120100, 120105, 120000, 120001, 120005, 120007
+## Title: |cff0cd29fNibbelz|r Stock
+## Notes: Counts every item in bags, bank and mail on all your characters. Tooltip with the account total and who holds how many, AH value of your mats, and an overview with a minimum-amount slider. /stock
+## Notes-deDE: Zählt alle Items in Taschen, Bank und Post auf all deinen Charakteren. Tooltip mit Account-Summe und wer wie viele hat, AH-Wert deiner Mats und eine Übersicht mit Mindestmengen-Regler. /stock
+## Author: Nibbelz
+## Version: 1.0.0
+## Category: Inventory
+## Category-deDE: Inventar
+## X-License: All Rights Reserved
+## X-Category: Inventory
+## OptionalDeps: EllesmereUI, NaowhForever, NaowhForever_AuctionData, Auctionator, TradeSkillMaster, Auc-Advanced
+## SavedVariables: NibbelzStockDB
+## IconTexture: Interface\Icons\INV_Misc_Bag_10
+## AddonCompartmentFunc: NibbelzStock_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: NibbelzStock_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: NibbelzStock_OnAddonCompartmentLeave
+
+Locale.lua
+Core.lua
+Style.lua
+Scan.lua
+Tooltip.lua
+Overview.lua
+Minimap.lua
+Options.lua
